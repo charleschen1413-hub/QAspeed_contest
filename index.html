@@ -1,0 +1,597 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>小學生知識問答大賽 (罰時版)</title>
+    <style>
+        :root {
+            --bg-a: #FF8A65; /* Team A Background (Orange/Red) */
+            --bg-b: #64B5F6; /* Team B Background (Light Blue) */
+            --bg-neutral: #f0f0f0;
+            --text-color: #333;
+            --card-bg: rgba(255, 255, 255, 0.95);
+            --base-font-size: 24px;
+        }
+
+        body {
+            font-family: 'Microsoft JhengHei', sans-serif;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background-color: var(--bg-neutral);
+            transition: background-color 0.5s ease;
+            color: var(--text-color);
+        }
+
+        /* 隊伍背景樣式 */
+        body.team-a-turn { background-color: var(--bg-a); }
+        body.team-b-turn { background-color: var(--bg-b); }
+
+        .container {
+            width: 90%;
+            max-width: 900px;
+            background: var(--card-bg);
+            padding: 2rem;
+            border-radius: 20px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+            text-align: center;
+            position: relative;
+        }
+
+        h1, h2 { margin-bottom: 1rem; }
+        
+        /* 設定頁面 */
+        #setup-screen, #result-screen { display: block; }
+        #game-screen { display: none; }
+
+        .btn {
+            padding: 15px 30px;
+            font-size: 1.2rem;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            margin: 10px;
+            transition: transform 0.1s;
+        }
+        .btn:active { transform: scale(0.95); }
+        .btn-primary { background-color: #4CAF50; color: white; }
+        .btn-restart { background-color: #607D8B; color: white; }
+
+        .option-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-top: 20px;
+        }
+
+        .option-btn {
+            background-color: white;
+            border: 2px solid #ddd;
+            padding: 20px;
+            font-size: var(--base-font-size);
+            border-radius: 10px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+            text-align: left;
+        }
+
+        .option-btn:hover { background-color: #f9f9f9; }
+        
+        /* 答對答錯特效 */
+        .option-btn.correct { background-color: #81C784 !important; color: white; border-color: #4CAF50; }
+        .option-btn.wrong { background-color: #E57373 !important; color: white; border-color: #F44336; }
+
+        .info-bar {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 20px;
+            font-size: 1.2rem;
+            font-weight: bold;
+            padding: 10px;
+            background: rgba(255,255,255,0.5);
+            border-radius: 10px;
+        }
+
+        .team-badge {
+            padding: 5px 15px;
+            border-radius: 20px;
+            color: white;
+        }
+        .badge-a { background-color: #E64A19; }
+        .badge-b { background-color: #1976D2; }
+
+        .question-text {
+            font-size: calc(var(--base-font-size) * 1.3);
+            font-weight: bold;
+            margin: 30px 0;
+            line-height: 1.4;
+            min-height: 100px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        /* 字體調整控制 */
+        .font-control {
+            position: absolute;
+            top: 10px;
+            right: 20px;
+            font-size: 0.9rem;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .timer-display {
+            font-family: 'Courier New', monospace;
+            font-size: 1.5rem;
+            min-width: 120px; /* 防止時間跳動導致版面晃動 */
+        }
+        
+        /* 罰時特效 */
+        .penalty-text {
+            color: red;
+            font-weight: bold;
+            font-size: 1rem;
+            animation: blink 0.5s 3;
+        }
+        
+        @keyframes blink {
+            0% { opacity: 1; }
+            50% { opacity: 0; }
+            100% { opacity: 1; }
+        }
+
+        /* 結果頁面 */
+        .stats-box {
+            display: flex;
+            justify-content: space-around;
+            margin: 20px 0;
+        }
+        .stat-card {
+            padding: 20px;
+            border-radius: 10px;
+            width: 40%;
+        }
+        .stat-a { background-color: #FFCCBC; }
+        .stat-b { background-color: #BBDEFB; }
+        
+        .winner-text {
+            font-size: 3rem;
+            font-weight: bold;
+            color: #FFD700;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+            margin: 20px 0;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <div id="setup-screen">
+            <h1>🎓 小學生知識問答大賽</h1>
+            <h3 style="color: #E57373;">⚠️ 注意：答錯將罰時 5 秒！</h3>
+            <p>請選擇比賽題目數量：</p>
+            <div>
+                <button class="btn btn-primary" onclick="startGame(10)">10 題</button>
+                <button class="btn btn-primary" onclick="startGame(20)">20 題</button>
+                <button class="btn btn-primary" onclick="startGame(50)">50 題</button>
+                <button class="btn btn-primary" onclick="startGame(100)">100 題</button>
+            </div>
+            <p style="margin-top: 30px; color: #666; font-size: 0.9rem;">
+                規則：A隊(橘)與B隊(藍)輪流作答，系統將統計答對題數與總花費時間。
+            </p>
+        </div>
+
+        <div id="game-screen">
+            <div class="font-control">
+                字體大小: 
+                <input type="range" min="16" max="40" value="24" id="fontSizeSlider" oninput="adjustFontSize()">
+            </div>
+
+            <div class="info-bar">
+                <div class="timer-display" style="color: #E64A19;">A隊: <span id="timerA">00:00</span></div>
+                <div>題號: <span id="q-current">1</span> / <span id="q-total">10</span></div>
+                <div class="timer-display" style="color: #1976D2;">B隊: <span id="timerB">00:00</span></div>
+            </div>
+
+            <div>
+                <span id="current-team-badge" class="team-badge badge-a">現在輪到：A 隊</span>
+            </div>
+
+            <div class="question-text" id="question-text">
+                題目載入中...
+            </div>
+
+            <div class="option-grid" id="options-container">
+                </div>
+        </div>
+
+        <div id="result-screen" style="display:none;">
+            <h1>比賽結束！</h1>
+            <div id="winner-display" class="winner-text"></div>
+            
+            <div class="stats-box">
+                <div class="stat-card stat-a">
+                    <h2>A 隊 (橘)</h2>
+                    <p>得分: <span id="score-a-final">0</span></p>
+                    <p>總時間: <span id="time-a-final">00:00</span></p>
+                </div>
+                <div class="stat-card stat-b">
+                    <h2>B 隊 (藍)</h2>
+                    <p>得分: <span id="score-b-final">0</span></p>
+                    <p>總時間: <span id="time-b-final">00:00</span></p>
+                </div>
+            </div>
+            
+            <button class="btn btn-restart" onclick="location.reload()">重新開始</button>
+        </div>
+    </div>
+
+<script>
+    // === 題庫資料 (已清理 source 標籤) ===
+    const rawData = `
+水加熱到幾度會沸騰變成水蒸氣？ (A) 50°C (B) 80°C (C) 100°C (D) 120°C 答案：(C)
+下列哪顆行星離太陽最近？ (A) 地球 (B) 火星 (C) 水星 (D) 金星 答案：(C)
+彩虹通常出現在什麼時候？ (A) 大晴天 (B) 雨後天晴 (C) 陰天 (D) 半夜 答案：(B)
+空氣中含量最多的氣體是？ (A) 氧氣 (B) 二氧化碳 (C) 氮氣 (D) 氫氣 答案：(C)
+植物行光合作用主要需要哪種氣體？ (A) 二氧化碳 (B) 氧氣 (C) 氮氣 (D) 氦氣 答案：(A)
+月亮繞著哪一個星體旋轉？ (A) 太陽 (B) 地球 (C) 火星 (D) 木星 答案：(B)
+指南針的 N 極通常指向哪個方向？ (A) 東方 (B) 西方 (C) 南方 (D) 北方 答案：(D)
+人體內體積最大的器官是？ (A) 心臟 (B) 肺 (C) 肝臟 (D) 皮膚 答案：(D)
+聲音在哪種介質中傳播速度最快？ (A) 空氣 (B) 水 (C) 鋼鐵 (D) 真空 答案：(C)
+蝙蝠是用什麼方式來辨別位置的？ (A) 視覺 (B) 嗅覺 (C) 超音波 (D) 觸覺 答案：(C)
+哪種動物被稱為「沙漠之舟」？ (A) 獅子 (B) 駱駝 (C) 大象 (D) 斑馬 答案：(B)
+下列哪種動物不是哺乳類？ (A) 鯨魚 (B) 企鵝 (C) 蝙蝠 (D) 狗 答案：(B)
+螞蟻是用什麼器官來溝通的？ (A) 觸角 (B) 腳 (C) 翅膀 (D) 眼睛 答案：(A)
+世界上體型最大的動物是？ (A) 大象 (B) 長頸鹿 (C) 藍鯨 (D) 恐龍 答案：(C)
+哪種動物會隨著環境改變皮膚顏色？ (A) 變色龍 (B) 蛇 (C) 烏龜 (D) 青蛙 答案：(A)
+鳥類中，哪一種最長壽且被視為長壽的象徵？ (A) 麻雀 (B) 仙鶴 (C) 老鷹 (D) 燕子 答案：(B)
+袋鼠的幼兒是在哪裡發育長大的？ (A) 蛋殼裡 (B) 育兒袋 (C) 樹洞 (D) 水裡 答案：(B)
+蝴蝶在變成成蟲之前是什麼樣子？ (A) 蛹 (B) 毛毛蟲 (C) 卵 (D) 以上皆是 答案：(D)
+哪種動物的牙齒會不斷生長，需要經常磨牙？ (A) 貓 (B) 兔子 (C) 老虎 (D) 鱷魚 答案：(B)
+蜘蛛總共有幾隻腳？ (A) 4 隻 (B) 6 隻 (C) 8 隻 (D) 10 隻 答案：(C)
+「畫蛇添足」這句成語的意思是什麼？ (A) 畫得很好 (B) 做了多餘且不當的事 (C) 蛇有腳 (D) 動作很快 答案：(B)
+「靜夜思」的作者是誰？ (A) 杜甫 (B) 白居易 (C) 李白 (D) 王維 答案：(C)
+「草船借箭」是哪部名著裡的故事？ (A) 西遊記 (B) 水滸傳 (C) 三國演義 (D) 紅樓夢 答案：(C)
+下列哪一組字是相反詞？ (A) 快樂/高興 (B) 勤勞/懶惰 (C) 漂亮/美麗 (D) 勇敢/大膽 答案：(B)
+「一鳴驚人」最初是用來形容哪種動物？ (A) 龍 (B) 虎 (C) 鳥 (D) 馬 答案：(C)
+"Apple" 是什麼顏色？ (A) Blue (B) Red (C) Black (D) White 答案：(B)
+一年當中有多少個月份 (Months)？ (A) Seven (B) Ten (C) Twelve (D) Twenty 答案：(C)
+"Elephant" 是指哪種動物？ (A) 獅子 (B) 猴子 (C) 兔子 (D) 大象 答案：(D)
+當你想問別人幾歲時，該怎麼說？ (A) How are you? (B) How old are you? (C) What is your name? (D) Thank you. 答案：(B)
+一星期的第一天（通常指週日）是？ (A) Monday (B) Friday (C) Saturday (D) Sunday 答案：(D)
+台灣最高的山峰是哪一座？ (A) 阿里山 (B) 玉山 (C) 雪山 (D) 陽明山 答案：(B)
+世界上面積最大的海洋是？ (A) 大西洋 (B) 印度洋 (C) 太平洋 (D) 北極海 答案：(C)
+發明電燈泡的人是誰？ (A) 牛頓 (B) 愛因斯坦 (C) 愛迪生 (D) 貝爾 答案：(C)
+端午節是為了紀念哪位歷史人物？ (A) 孔子 (B) 屈原 (C) 關羽 (D) 鄭成功 答案：(B)
+哪一個國家被稱為「袋鼠之國」？ (A) 美國 (B) 日本 (C) 澳洲 (D) 英國 答案：(C)
+指南針、造紙術、火藥和什麼並稱為中國四大發明？ (A) 絲綢 (B) 印刷術 (C) 陶瓷 (D) 風箏 答案：(B)
+世界第一高峰「珠穆朗瑪峰」在哪個山脈？ (A) 安地斯山脈 (B) 落磯山脈 (C) 喜馬拉雅山脈 (D) 阿爾卑斯山脈 答案：(C)
+台灣本島最南端的地方是？ (A) 基隆 (B) 屏東墾丁 (C) 高雄 (D) 台東 答案：(B)
+過馬路時，看到什麼顏色的燈可以通行？ (A) 紅色 (B) 黃色 (C) 綠色 (D) 紫色 答案：(C)
+火警報案撥打的電話號碼是？ (A) 110 (B) 119 (C) 105 (D) 123 答案：(B)
+飯前洗手是為了防止什麼進入體內？ (A) 營養 (B) 病毒與細菌 (C) 水分 (D) 空氣 答案：(B)
+地震發生時，第一時間應該怎麼做？ (A) 躲在桌子下 (B) 搭電梯逃生 (C) 站在窗邊看 (D) 大聲唱歌 答案：(A)
+哪種資源是可以資源回收的？ (A) 衛生紙 (B) 寶特瓶 (C) 剩菜剩飯 (D) 煙蒂 答案：(B)
+What color is the sky on a sunny day? (A) Red (B) Blue (C) Green (D) Black 答案：(B)
+Which word means「蘋果」? (A) Banana (B) Orange (C) Apple (D) Grape 答案：(C)
+Which one is an animal? (A) Chair (B) Dog (C) Table (D) Book 答案：(B)
+How many days are there in a week? (A) Five (B) Six (C) Seven (D) Eight 答案：(C)
+What is the opposite of “big”? (A) Tall (B) Small (C) Long (D) Fast 答案：(B)
+Which one is a fruit? (A) Carrot (B) Potato (C) Apple (D) Onion 答案：(C)
+What do you say when you meet someone? (A) Goodbye (B) Sorry (C) Hello (D) Thanks 答案：(C)
+Which word means「書」? (A) Pen (B) Book (C) Desk (D) Bag 答案：(B)
+What animal says “meow”? (A) Dog (B) Cat (C) Cow (D) Bird 答案：(B)
+Which one is a number? (A) Blue (B) Run (C) Five (D) Happy 答案：(C)
+Which word means「跑」? (A) Eat (B) Sleep (C) Run (D) Read 答案：(C)
+What color is a banana? (A) Blue (B) Yellow (C) Red (D) Black 答案：(B)
+Which is used to write? (A) Spoon (B) Pen (C) Cup (D) Shoe 答案：(B)
+What comes after Monday? (A) Sunday (B) Friday (C) Tuesday (D) Saturday 答案：(C)
+Which word means「老師」? (A) Student (B) Teacher (C) Doctor (D) Farmer 答案：(B)
+What is “cat” in Chinese? (A) 狗 (B) 鳥 (C) 貓 (D) 牛 答案：(C)
+Which one is a shape? (A) Circle (B) Apple (C) Dog (D) Water 答案：(A)
+Which word means「喝」? (A) Eat (B) Drink (C) Sleep (D) Jump 答案：(B)
+What do you wear on your feet? (A) Hat (B) Shirt (C) Shoes (D) Gloves 答案：(C)
+Which one is hot? (A) Ice (B) Snow (C) Fire (D) Rain 答案：(C)
+Which word means「快樂」? (A) Sad (B) Angry (C) Happy (D) Tired 答案：(C)
+What animal is very big and has a long nose? (A) Dog (B) Elephant (C) Cat (D) Tiger 答案：(B)
+Which one is a drink? (A) Rice (B) Bread (C) Water (D) Cake 答案：(C)
+What do you use to see? (A) Ear (B) Nose (C) Eye (D) Hand 答案：(C)
+Which word means「家」? (A) School (B) Home (C) Park (D) Road 答案：(B)
+What is the first letter of “Apple”? (A) B (B) C (C) A (D) D 答案：(C)
+Which one is an action? (A) Jump (B) Table (C) Chair (D) Pencil 答案：(A)
+What do birds use to fly? (A) Legs (B) Wings (C) Tails (D) Teeth 答案：(B)
+Which word means「朋友」? (A) Enemy (B) Friend (C) Teacher (D) Family 答案：(B)
+What color are leaves usually? (A) Red (B) Green (C) Blue (D) White 答案：(B)
+我們住在地球的哪一個地方？ (A) 月球 (B) 太陽 (C) 地球 (D) 火星 答案：(C)
+台灣是一個？ (A) 大陸 (B) 島嶼 (C) 沙漠 (D) 冰原 答案：(B)
+地球上最大的海洋是？ (A) 印度洋 (B) 大西洋 (C) 太平洋 (D) 北冰洋 答案：(C)
+哪一個不是自然地形？ (A) 山 (B) 河流 (C) 公路 (D) 海洋 答案：(C)
+太陽從哪裡升起？ (A) 東方 (B) 西方 (C) 北方 (D) 南方 答案：(A)
+地圖上藍色通常代表？ (A) 山 (B) 森林 (C) 水 (D) 沙漠 答案：(C)
+哪一個是國家？ (A) 台北 (B) 高雄 (C) 台灣 (D) 公園 答案：(C)
+沙漠通常？ (A) 很冷 (B) 很濕 (C) 很乾 (D) 下雪 答案：(C)
+河流最後通常流向？ (A) 山上 (B) 海洋 (C) 天空 (D) 地下 答案：(B)
+哪一個是交通工具？ (A) 山 (B) 河 (C) 火車 (D) 森林 答案：(C)
+地球有幾個方向？ (A) 二個 (B) 三個 (C) 四個 (D) 五個 答案：(C)
+下雨很多的地方稱為？ (A) 草原 (B) 沙漠 (C) 雨林 (D) 冰原 答案：(C)
+哪裡可以看到很多魚？ (A) 森林 (B) 沙漠 (C) 海洋 (D) 山頂 答案：(C)
+台灣在哪一洲？ (A) 歐洲 (B) 亞洲 (C) 非洲 (D) 美洲 答案：(B)
+哪一個是天氣？ (A) 橋 (B) 雨 (C) 房子 (D) 路 答案：(B)
+地球表面最多的是？ (A) 陸地 (B) 水 (C) 沙 (D) 冰 答案：(B)
+哪一個是人造建築？ (A) 山 (B) 河 (C) 房子 (D) 海 答案：(C)
+颱風常出現在？ (A) 海上 (B) 沙漠 (C) 冰原 (D) 高山 答案：(A)
+哪裡通常比較冷？ (A) 赤道 (B) 沙漠 (C) 北極 (D) 海邊 答案：(C)
+哪一個是城市？ (A) 台中 (B) 山脈 (C) 河流 (D) 草原 答案：(A)
+地圖上用來指方向的是？ (A) 比例尺 (B) 指南針 (C) 顏色 (D) 標題 答案：(B)
+哪一個是自然災害？ (A) 地震 (B) 電梯 (C) 橋 (D) 學校 答案：(A)
+台灣周圍是？ (A) 湖 (B) 河 (C) 海 (D) 山 答案：(C)
+哪裡最容易看到雪？ (A) 海邊 (B) 高山 (C) 草原 (D) 平原 答案：(B)
+早上看到太陽表示是？ (A) 晚上 (B) 中午 (C) 早晨 (D) 深夜 答案：(C)
+歷史是研究什麼？ (A) 未來 (B) 過去 (C) 現在 (D) 夢想 答案：(B)
+古人沒有哪一樣？ (A) 手機 (B) 房子 (C) 衣服 (D) 火 答案：(A)
+人類最早使用的工具多為？ (A) 塑膠 (B) 鐵 (C) 石頭 (D) 玻璃 答案：(C)
+書寫可以幫助人們？ (A) 忘記事情 (B) 記錄事情 (C) 逃避事情 (D) 停止學習 答案：(B)
+古代人用什麼記錄事情？ (A) 電腦 (B) 紙和筆 (C) 石刻 (D) 手機 答案：(C)
+哪一個是古代建築？ (A) 高鐵站 (B) 摩天大樓 (C) 金字塔 (D) 機場 答案：(C)
+歷史人物是？ (A) 卡通角色 (B) 真實存在過的人 (C) 動物 (D) 未來的人 答案：(B)
+古代人怎麼傳遞消息？ (A) 電話 (B) 信件 (C) Email (D) 視訊 答案：(B)
+哪一個是節日？ (A) 星期一 (B) 農曆新年 (C) 昨天 (D) 明天 答案：(B)
+很久以前的人主要靠什麼生活？ (A) 打獵和採集 (B) 上班 (C) 開車 (D) 上網 答案：(A)
+文字的出現讓人類？ (A) 不用學習 (B) 更容易記錄事情 (C) 不再說話 (D) 不再畫畫 答案：(B)
+哪一個是古代交通工具？ (A) 飛機 (B) 高鐵 (C) 馬車 (D) 地鐵 答案：(C)
+古代的房子多用什麼蓋？ (A) 塑膠 (B) 木頭 (C) 鋼鐵 (D) 水泥 答案：(B)
+歷史課通常學？ (A) 動物 (B) 數學 (C) 過去的事情 (D) 未來科技 答案：(C)
+古代沒有哪一項科技？ (A) 電力 (B) 農耕 (C) 火 (D) 工具 答案：(A)
+哪一個是歷史文物？ (A) 新書 (B) 古代陶器 (C) 新手機 (D) 鉛筆 答案：(B)
+古代人怎麼取暖？ (A) 開暖氣 (B) 生火 (C) 插電 (D) 開冷氣 答案：(B)
+歷史故事通常發生在？ (A) 未來 (B) 現在 (C) 過去 (D) 夢中 答案：(C)
+哪一個是傳統節日活動？ (A) 打電動 (B) 滑手機 (C) 包粽子 (D) 看電視 答案：(C)
+古代書籍通常寫在？ (A) 電子書 (B) 平板 (C) 竹簡 (D) 手機 答案：(C)
+歷史可以教我們？ (A) 玩遊戲 (B) 了解過去 (C) 忘記錯誤 (D) 不用學習 答案：(B)
+古代沒有哪一種？ (A) 皇帝 (B) 戰爭 (C) 網路 (D) 農民 答案：(C)
+人類學會農耕後？ (A) 到處流浪 (B) 定居生活 (C) 不吃飯 (D) 不穿衣 答案：(B)
+歷史事件通常被記錄在？ (A) 小說 (B) 日記 (C) 史書 (D) 漫畫 答案：(C)
+哪一個是歷史老師會用的？ (A) 地圖 (B) 球 (C) 餐盤 (D) 鞋子 答案：(A)
+    `;
+
+    // === 遊戲變數 ===
+    let questions = [];
+    let currentQuestions = [];
+    let currentQIndex = 0;
+    let turn = 'A'; // 'A' or 'B'
+    let scoreA = 0;
+    let scoreB = 0;
+    let timeA = 0; // ms
+    let timeB = 0; // ms
+    let timerInterval = null;
+    let lastTime = 0;
+
+    // === 解析資料 (將文字轉換為物件) ===
+    function parseData() {
+        const lines = rawData.split('\n').filter(line => line.trim() !== '');
+        const parsed = [];
+        
+        lines.forEach(line => {
+            const regex = /(.+?)\s*\(A\)\s*(.+?)\s*\(B\)\s*(.+?)\s*\(C\)\s*(.+?)\s*\(D\)\s*(.+?)\s*答案：\(([A-D])\)/;
+            const match = line.match(regex);
+            
+            if (match) {
+                parsed.push({
+                    q: match[1].trim(),
+                    options: {
+                        A: match[2].trim(),
+                        B: match[3].trim(),
+                        C: match[4].trim(),
+                        D: match[5].trim()
+                    },
+                    ans: match[6]
+                });
+            }
+        });
+        return parsed;
+    }
+
+    // === 初始化遊戲 ===
+    function startGame(count) {
+        questions = parseData();
+        if (questions.length === 0) {
+            alert("題庫解析失敗，請檢查資料格式。");
+            return;
+        }
+
+        // 隨機洗牌
+        questions.sort(() => 0.5 - Math.random());
+        // 取出前 N 題
+        currentQuestions = questions.slice(0, count);
+        
+        // 重置變數
+        currentQIndex = 0;
+        turn = 'A';
+        scoreA = 0;
+        scoreB = 0;
+        timeA = 0;
+        timeB = 0;
+        document.getElementById('timerA').innerText = "00:00.00";
+        document.getElementById('timerB').innerText = "00:00.00";
+        document.getElementById('q-total').innerText = currentQuestions.length;
+        
+        // 切換畫面
+        document.getElementById('setup-screen').style.display = 'none';
+        document.getElementById('result-screen').style.display = 'none';
+        document.getElementById('game-screen').style.display = 'block';
+
+        updateTeamUI();
+        loadQuestion();
+        startTimer();
+    }
+
+    // === 載入題目 ===
+    function loadQuestion() {
+        if (currentQIndex >= currentQuestions.length) {
+            endGame();
+            return;
+        }
+
+        const qData = currentQuestions[currentQIndex];
+        document.getElementById('q-current').innerText = currentQIndex + 1;
+        document.getElementById('question-text').innerText = qData.q;
+        
+        const container = document.getElementById('options-container');
+        container.innerHTML = ''; // 清空選項
+
+        ['A', 'B', 'C', 'D'].forEach(optKey => {
+            const btn = document.createElement('div');
+            btn.className = 'option-btn';
+            btn.innerText = `(${optKey}) ${qData.options[optKey]}`;
+            btn.onclick = () => checkAnswer(optKey, qData.ans, btn);
+            container.appendChild(btn);
+        });
+    }
+
+    // === 檢查答案 (已修正：包含罰時邏輯) ===
+    function checkAnswer(selected, correct, btnElement) {
+        stopTimer(); // 暫停計時，顯示結果
+        
+        const allBtns = document.querySelectorAll('.option-btn');
+        allBtns.forEach(b => b.style.pointerEvents = 'none');
+
+        if (selected === correct) {
+            btnElement.classList.add('correct');
+            if (turn === 'A') scoreA++; else scoreB++;
+        } else {
+            // 答錯邏輯
+            btnElement.classList.add('wrong');
+            
+            // 1. 標示正確答案
+            allBtns.forEach(b => {
+                if (b.innerText.startsWith(`(${correct})`)) {
+                    b.classList.add('correct');
+                }
+            });
+
+            // 2. 增加時間 (罰時 5 秒)
+            const penalty = 5000;
+            if (turn === 'A') {
+                timeA += penalty;
+                const timerEl = document.getElementById('timerA');
+                timerEl.innerText = formatTime(timeA) + " (+5秒)";
+                timerEl.classList.add('penalty-text');
+                setTimeout(() => timerEl.classList.remove('penalty-text'), 1000);
+            } else {
+                timeB += penalty;
+                const timerEl = document.getElementById('timerB');
+                timerEl.innerText = formatTime(timeB) + " (+5秒)";
+                timerEl.classList.add('penalty-text');
+                setTimeout(() => timerEl.classList.remove('penalty-text'), 1000);
+            }
+        }
+
+        // 延遲後換下一題
+        setTimeout(() => {
+            currentQIndex++;
+            switchTurn();
+            loadQuestion();
+            startTimer();
+        }, 1500);
+    }
+
+    // === 切換隊伍 ===
+    function switchTurn() {
+        turn = turn === 'A' ? 'B' : 'A';
+        updateTeamUI();
+    }
+
+    // === 更新 UI ===
+    function updateTeamUI() {
+        const body = document.body;
+        const badge = document.getElementById('current-team-badge');
+        
+        body.classList.remove('team-a-turn', 'team-b-turn');
+        badge.classList.remove('badge-a', 'badge-b');
+
+        if (turn === 'A') {
+            body.classList.add('team-a-turn');
+            badge.classList.add('badge-a');
+            badge.innerText = "現在輪到：A 隊 (橘)";
+        } else {
+            body.classList.add('team-b-turn');
+            badge.classList.add('badge-b');
+            badge.innerText = "現在輪到：B 隊 (藍)";
+        }
+    }
+
+    // === 計時器邏輯 ===
+    function startTimer() {
+        lastTime = Date.now();
+        timerInterval = setInterval(() => {
+            const now = Date.now();
+            const diff = now - lastTime;
+            lastTime = now;
+
+            if (turn === 'A') {
+                timeA += diff;
+                document.getElementById('timerA').innerText = formatTime(timeA);
+            } else {
+                timeB += diff;
+                document.getElementById('timerB').innerText = formatTime(timeB);
+            }
+        }, 50);
+    }
+
+    function stopTimer() {
+        clearInterval(timerInterval);
+    }
+
+    function formatTime(ms) {
+        const totalSeconds = Math.floor(ms / 1000);
+        const minutes = Math.floor(totalSeconds / 60).toString().padStart(2, '0');
+        const seconds = (totalSeconds % 60).toString().padStart(2, '0');
+        const millis = Math.floor((ms % 1000) / 10).toString().padStart(2, '0');
+        return `${minutes}:${seconds}.${millis}`;
+    }
+
+    // === 遊戲結束 ===
+    function endGame() {
+        stopTimer();
+        document.getElementById('game-screen').style.display = 'none';
+        document.getElementById('result-screen').style.display = 'block';
+        
+        document.body.classList.remove('team-a-turn', 'team-b-turn'); 
+
+        document.getElementById('score-a-final').innerText = scoreA;
+        document.getElementById('time-a-final').innerText = formatTime(timeA);
+        document.getElementById('score-b-final').innerText = scoreB;
+        document.getElementById('time-b-final').innerText = formatTime(timeB);
+
+        // 判斷勝負 (先比分，再比時間)
+        let winnerText = "";
+        if (scoreA > scoreB) {
+            winnerText = "🎉 A 隊獲勝！";
+        } else if (scoreB > scoreA) {
+            winnerText = "🎉 B 隊獲勝！";
+        } else {
+            if (timeA < timeB) {
+                winnerText = "🎉 A 隊獲勝！(同分，時間較短)";
+            } else if (timeB < timeA) {
+                winnerText = "🎉 B 隊獲勝！(同分，時間較短)";
+            } else {
+                winnerText = "🤝 平手！";
+            }
+        }
+        document.getElementById('winner-display').innerText = winnerText;
+    }
+
+    function adjustFontSize() {
+        const val = document.getElementById('fontSizeSlider').value;
+        document.documentElement.style.setProperty('--base-font-size', val + 'px');
+    }
+</script>
+
+</body>
+</html>
