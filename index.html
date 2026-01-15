@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>小學生知識問答大賽 (罰時版)</title>
+    <title>小學生知識問答大賽 (競速版)</title>
     <style>
         :root {
             --bg-a: #FF8A65; /* Team A Background (Orange/Red) */
@@ -171,10 +171,14 @@
 </head>
 <body>
 
+    <audio id="bg-music" loop>
+        <source src="GO! - MyRingtone.mp3" type="audio/mpeg">
+    </audio>
+
     <div class="container">
         <div id="setup-screen">
             <h1>🎓 小學生知識問答大賽</h1>
-            <h3 style="color: #E57373;">⚠️ 注意：答錯將罰時 5 秒！</h3>
+            <h3 style="color: #E57373;">⚠️ 注意：答錯將罰時 7 秒！</h3>
             <p>請選擇比賽題目數量：</p>
             <div>
                 <button class="btn btn-primary" onclick="startGame(10)">10 題</button>
@@ -183,7 +187,7 @@
                 <button class="btn btn-primary" onclick="startGame(100)">100 題</button>
             </div>
             <p style="margin-top: 30px; color: #666; font-size: 0.9rem;">
-                規則：A隊(橘)與B隊(藍)輪流作答，系統將統計答對題數與總花費時間。
+                規則：A隊(橘)與B隊(藍)輪流作答，<b>比賽勝負僅取決於「總時間」</b>(含罰時)，時間短者獲勝！
             </p>
         </div>
 
@@ -218,12 +222,12 @@
             <div class="stats-box">
                 <div class="stat-card stat-a">
                     <h2>A 隊 (橘)</h2>
-                    <p>得分: <span id="score-a-final">0</span></p>
+                    <p>得分: <span id="score-a-final">0</span> (不影響勝負)</p>
                     <p>總時間: <span id="time-a-final">00:00</span></p>
                 </div>
                 <div class="stat-card stat-b">
                     <h2>B 隊 (藍)</h2>
-                    <p>得分: <span id="score-b-final">0</span></p>
+                    <p>得分: <span id="score-b-final">0</span> (不影響勝負)</p>
                     <p>總時間: <span id="time-b-final">00:00</span></p>
                 </div>
             </div>
@@ -233,7 +237,7 @@
     </div>
 
 <script>
-    // === 題庫資料 (已清理 source 標籤) ===
+    // === 題庫資料 ===
     const rawData = `
 水加熱到幾度會沸騰變成水蒸氣？ (A) 50°C (B) 80°C (C) 100°C (D) 120°C 答案：(C)
 下列哪顆行星離太陽最近？ (A) 地球 (B) 火星 (C) 水星 (D) 金星 答案：(C)
@@ -371,6 +375,9 @@ What color are leaves usually? (A) Red (B) Green (C) Blue (D) White 答案：(B)
     let timeB = 0; // ms
     let timerInterval = null;
     let lastTime = 0;
+    
+    // 取得音效元素
+    const bgMusic = document.getElementById('bg-music');
 
     // === 解析資料 (將文字轉換為物件) ===
     function parseData() {
@@ -426,6 +433,10 @@ What color are leaves usually? (A) Red (B) Green (C) Blue (D) White 答案：(B)
         document.getElementById('result-screen').style.display = 'none';
         document.getElementById('game-screen').style.display = 'block';
 
+        // 播放音樂
+        bgMusic.currentTime = 0;
+        bgMusic.play().catch(e => console.log("Autoplay blocked:", e));
+
         updateTeamUI();
         loadQuestion();
         startTimer();
@@ -454,7 +465,7 @@ What color are leaves usually? (A) Red (B) Green (C) Blue (D) White 答案：(B)
         });
     }
 
-    // === 檢查答案 (已修正：包含罰時邏輯) ===
+    // === 檢查答案 (罰時邏輯改為 7 秒) ===
     function checkAnswer(selected, correct, btnElement) {
         stopTimer(); // 暫停計時，顯示結果
         
@@ -475,18 +486,18 @@ What color are leaves usually? (A) Red (B) Green (C) Blue (D) White 答案：(B)
                 }
             });
 
-            // 2. 增加時間 (罰時 5 秒)
-            const penalty = 5000;
+            // 2. 增加時間 (罰時 7 秒) - 修正點
+            const penalty = 7000; 
             if (turn === 'A') {
                 timeA += penalty;
                 const timerEl = document.getElementById('timerA');
-                timerEl.innerText = formatTime(timeA) + " (+5秒)";
+                timerEl.innerText = formatTime(timeA) + " (+7秒)";
                 timerEl.classList.add('penalty-text');
                 setTimeout(() => timerEl.classList.remove('penalty-text'), 1000);
             } else {
                 timeB += penalty;
                 const timerEl = document.getElementById('timerB');
-                timerEl.innerText = formatTime(timeB) + " (+5秒)";
+                timerEl.innerText = formatTime(timeB) + " (+7秒)";
                 timerEl.classList.add('penalty-text');
                 setTimeout(() => timerEl.classList.remove('penalty-text'), 1000);
             }
@@ -559,6 +570,10 @@ What color are leaves usually? (A) Red (B) Green (C) Blue (D) White 答案：(B)
     // === 遊戲結束 ===
     function endGame() {
         stopTimer();
+        
+        // 暫停音樂
+        bgMusic.pause();
+
         document.getElementById('game-screen').style.display = 'none';
         document.getElementById('result-screen').style.display = 'block';
         
@@ -569,21 +584,17 @@ What color are leaves usually? (A) Red (B) Green (C) Blue (D) White 答案：(B)
         document.getElementById('score-b-final').innerText = scoreB;
         document.getElementById('time-b-final').innerText = formatTime(timeB);
 
-        // 判斷勝負 (先比分，再比時間)
+        // 判斷勝負 (純粹比時間)
         let winnerText = "";
-        if (scoreA > scoreB) {
-            winnerText = "🎉 A 隊獲勝！";
-        } else if (scoreB > scoreA) {
-            winnerText = "🎉 B 隊獲勝！";
+        
+        if (timeA < timeB) {
+            winnerText = "🎉 A 隊獲勝！(時間較短)";
+        } else if (timeB < timeA) {
+            winnerText = "🎉 B 隊獲勝！(時間較短)";
         } else {
-            if (timeA < timeB) {
-                winnerText = "🎉 A 隊獲勝！(同分，時間較短)";
-            } else if (timeB < timeA) {
-                winnerText = "🎉 B 隊獲勝！(同分，時間較短)";
-            } else {
-                winnerText = "🤝 平手！";
-            }
+            winnerText = "🤝 平手！";
         }
+
         document.getElementById('winner-display').innerText = winnerText;
     }
 
